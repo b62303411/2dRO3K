@@ -1,0 +1,22 @@
+fileFormatVersion: 2
+guid: c02d6ba18b2e4b7478676a98c2691eb8
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - oceanTile: {fileID: 11400000, guid: 356784862bbcd9749a3d706ca92be1bc, type: 2}
+  - sandTile: {fileID: 11400000, guid: d97d6e9e75ce65248b4574df0aaccecc, type: 2}
+  - grassTile: {fileID: 11400000, guid: 994418743e0e163498a77c8c3c9c76aa, type: 2}
+  - rockTile: {instanceID: 0}
+  - snowTile: {instanceID: 0}
+  - riverTile: {instanceID: 0}
+  - lakeTile: {instanceID: 0}
+  - plateauTile: {instanceID: 0}
+  - bridgeTileStraightNS: {instanceID: 0}
+  - bridgeTileStraightEW: {instanceID: 0}
+  - bridgeTilePillar: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
