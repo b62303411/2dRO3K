@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c02d6ba18b2e4b7478676a98c2691eb8, type: 3}
+  m_Name: TerrainTilerConfig
+  m_EditorClassIdentifier: 
+  seaLevel: 0
+  beachBand: 0.02
+  snowLevel: 0.8
+  terraceStep: 0.05
+  bridgeRampAllowance: 0.02
+  maxBridgeLength: 128
+  detectLakes: 1
+  lakeMinArea: 200
+  oceanTile: {fileID: 11400000, guid: 1185d1b6985cf6b40b523d5ec639681a, type: 2}
+  sandTile: {fileID: 11400000, guid: de26eac5dd501724ba4eac9e3ce319f0, type: 2}
+  grassTile: {fileID: 11400000, guid: 994418743e0e163498a77c8c3c9c76aa, type: 2}
+  rockTile: {fileID: 0}
+  snowTile: {fileID: 11400000, guid: e3c6569f9ea4c9349910a24d3fc69afe, type: 2}
+  riverTile: {fileID: 11400000, guid: 1848f9fe805ba2c40b6acc9164d9354a, type: 2}
+  lakeTile: {fileID: 0}
+  plateauTile: {fileID: 0}
+  paintByBiome: 1
+  bridgeTileStraightNS: {fileID: 0}
+  bridgeTileStraightEW: {fileID: 0}
+  bridgeTilePillar: {fileID: 0}
+  logStats: 1

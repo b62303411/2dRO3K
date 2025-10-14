@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e00ee3223fa9894a9bc8928b77e2af3, type: 3}
+  m_Name: game_config
+  m_EditorClassIdentifier: 
+  factions:
+  - id: 1
+    displayName: Montreal
+    color: {r: 0.5849056, g: 0.33880383, b: 0.33880383, a: 0}
+  - id: 2
+    displayName: Quebec
+    color: {r: 0.3372549, g: 0.38474908, b: 0.58431375, a: 0}
+  - id: 3
+    displayName: Carleton
+    color: {r: 0.58431375, g: 0.3372549, b: 0.5126848, a: 0}
