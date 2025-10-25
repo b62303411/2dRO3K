@@ -7,12 +7,15 @@ public class HeightmapToTilesGenerator : MonoBehaviour
     [Header("Input")]
     public Texture2D heightmap;            // grayscale
     public TerrainTilerConfig cfg;
-
+    public Tile obstacle;
     [Header("Outputs")]
     public Tilemap sandMap;                // couche principale (océan/sable/herbe/roche/neige OU plateau)
+    public Tilemap grassMap;                // couche principale (océan/sable/herbe/roche/neige OU plateau)
     public Tilemap oceanMap;                // couche principale (océan/sable/herbe/roche/neige OU plateau)
+    public Tilemap elevationMap;                // couche principale (océan/sable/herbe/roche/neige OU plateau)
     public Tilemap bridgeMap;              // ponts
     public Tilemap debugMap;               // optionnel (marquage composantes / tests)
+    public Tilemap collisionMap;
 
     [Header("General")]
     public bool clearOnGenerate = true;
@@ -33,14 +36,27 @@ public class HeightmapToTilesGenerator : MonoBehaviour
     [ContextMenu("Generate")]
     public void Generate()
     {
+        List<Tilemap> maps = new List<Tilemap>();
+        if(sandMap)
+            maps.Add(sandMap);
+        if(oceanMap)
+            maps.Add(oceanMap);
+        if(grassMap)
+            maps.Add(grassMap);
+        if(collisionMap)
+            maps.Add(collisionMap);
+        if(elevationMap)
+            maps.Add(elevationMap); 
+        if(bridgeMap)
+            maps.Add(bridgeMap);
         if (!Validate()) return;
 
         if (clearOnGenerate)
         {
-            sandMap.ClearAllTiles();
-            oceanMap.ClearAllTiles();
-            if (bridgeMap) bridgeMap.ClearAllTiles();
-            if (debugMap) debugMap.ClearAllTiles();
+            foreach (Tilemap tm in maps) 
+            {
+                sandMap.ClearAllTiles();
+            }
         }
 
         LoadHeight();
@@ -192,11 +208,14 @@ public class HeightmapToTilesGenerator : MonoBehaviour
                 sandMap.SetTile(wpos, cfg.sandTile);
                 if (h <= cfg.seaLevel)
                 {
+                    collisionMap.SetTile(wpos, obstacle);
                     oceanMap.SetTile(wpos, cfg.oceanTile);
                     continue;
                 }
                 if (h <= cfg.riverLevel)
                 {
+                    collisionMap.SetTile(wpos, obstacle);
+                    collisionMap.SetTile(wpos, cfg.oceanTile);
                     oceanMap.SetTile(wpos, cfg.riverTile);
                     continue;
                 }
@@ -204,7 +223,7 @@ public class HeightmapToTilesGenerator : MonoBehaviour
 
                 if (!cfg.paintByBiome)
                 {
-                    oceanMap.SetTile(wpos, cfg.plateauTile);
+                    grassMap.SetTile(wpos, cfg.plateauTile);
                     continue;
                 }
 
@@ -213,26 +232,26 @@ public class HeightmapToTilesGenerator : MonoBehaviour
                 bool nearCoast = IsNearOcean(x, y, 4);
                 if (h <= cfg.seaLevel + cfg.beachBand && nearCoast)
                 {
-                    oceanMap.SetTile(wpos, cfg.sandTile != null ? cfg.sandTile : cfg.grassTile);
+                    grassMap.SetTile(wpos, cfg.sandTile != null ? cfg.sandTile : cfg.grassTile);
                     continue;
                 }
 
                 // neige hautes altitudes
                 if (h >= cfg.snowLevel && cfg.snowTile != null)
                 {
-                    oceanMap.SetTile(wpos, cfg.snowTile);
+                    elevationMap.SetTile(wpos, cfg.snowTile);
                     continue;
                 }
 
                 // roche rudimentaire si très au-dessus (tu peux remplacer par pente si tu veux raffiner)
                 if (h >= (cfg.snowLevel - 0.1f) && cfg.rockTile != null)
                 {
-                    oceanMap.SetTile(wpos, cfg.rockTile);
+                    elevationMap.SetTile(wpos, cfg.rockTile);
                     continue;
                 }
 
                 // par défaut herbe
-                oceanMap.SetTile(wpos, cfg.grassTile);
+                grassMap.SetTile(wpos, cfg.grassTile);
             }
     }
 

@@ -5,6 +5,12 @@ using System.Collections.Generic;
 [ExecuteAlways]
 public class ParentChunkGridIndex : MonoBehaviour
 {
+    public struct Req 
+    {
+        public Vector3Int pos;
+        public Tilemap map;
+    }
+
     [Header("Put this on the ROOT Grid")]
     public Grid parentGrid;
 
@@ -14,22 +20,53 @@ public class ParentChunkGridIndex : MonoBehaviour
                                                       // was: readonly Dictionary<(Vector2Int chunk, int layerId), Tilemap> _layerMap = new();
 
     // auto-discovered
-    readonly Dictionary<Vector2Int, Grid> _chunkGridAt = new();  // (cx,cy) -> child Grid
+    readonly Dictionary<Vector2Int, ChunkTag> _chunkAt = new();  // (cx,cy) -> child Grid
     readonly Dictionary<LayerKey, Tilemap> _layerMap = new(); // (chunk,layer) -> Tilemap
     readonly Dictionary<Tilemap, int> _layerOf = new(); // cached layerId
-    readonly List<Grid> _childGridsBuf = new();
+    readonly List<ChunkTag> _chunkBuf = new();
     readonly List<GridPartitionBounds> _GridPartitionBounds = new();
     readonly List<Tilemap> _tmBuf = new();
     // Floor-division that works for negatives too
     static int DivFloor(int a, int b) => (a >= 0) ? (a / b) : ((a - (b - 1)) / b);
-
-
+     
+    public Queue<Req> _queue_resolve = new();
+    public Queue<Req> _queue_update = new();
     void OnEnable()
     {
         if (!parentGrid) parentGrid = GetComponent<Grid>();
         RebuildIndex();
     }
 
+
+
+    void Update()
+    {
+        // Your per-editor-frame work (keep it tiny; budgeted if heavy)
+        // e.g., DrainQueues(); throttle long tasks; use timeSinceStartup for pacing
+        // double t = EditorApplication.timeSinceStartup;
+        Dequeue();
+    }
+
+
+    void Dequeue() 
+    {
+        int budget = Mathf.Max(0, 100);
+        while (budget-- > 0 && _queue_update.Count > 0)
+        {
+            var r = _queue_update.Dequeue();
+            if (!r.map) continue;
+            r.map.RefreshTile(r.pos);
+        }
+    }
+    
+    
+    void Enqueue(Tilemap map, Vector3Int pos)
+    {
+        var req = new Req { map = map, pos = pos };
+        //var key = new Key { map = map, pos = pos };
+        _queue_update.Enqueue(req);
+    }
+    
     void OnValidate()
     {
         if (chunkSize.x <= 0) chunkSize.x = 64;
@@ -50,34 +87,57 @@ public class ParentChunkGridIndex : MonoBehaviour
     Vector2Int ParentToChunk(Vector3Int pc)
     {
         int rx = pc.x - gridOrigin.x, ry = pc.y - gridOrigin.y;
-        int cx = DivFloor(rx, chunkSize.x);
-        int cy = DivFloor(ry, chunkSize.y);
+        int cx = DivFloor(rx,128);
+        int cy = DivFloor(ry, 128);
         return new Vector2Int(cx, cy);
     }
-    public TileBase GetTileGlobalSameLayer2(Vector3Int worldPos, int layerId)
-    {
 
-        foreach (var childGrid in _childGridsBuf)
+    ChunkTag GetChunk(Vector3Int position) 
+    {
+        if (_chunkAt.Count == 0) 
         {
-            var bounds = childGrid.GetComponentInChildren<GridPartitionBounds>();
-            if (null != bounds  && bounds.IsInbound(worldPos)) 
-            {
-                return bounds.GetTile(worldPos, layerId);
-            }            
+            RebuildIndex();
         }
-        return null;
+        var chunk_coord = ParentToChunk(position);
+        ChunkTag chunk;
+        _chunkAt.TryGetValue(chunk_coord, out chunk);
+        return chunk;
+
     }
+
+
+    Tilemap GetTileMap(Vector3Int position, int layerId) 
+    {
+        ChunkTag chunk = GetChunk(position);
+        if (chunk == null)
+            return null;
+        var tm = chunk.GetLayer(layerId);
+       
+        if (tm == null)
+        {
+            List<Tilemap> _tilemaps = new();
+
+            chunk.GetComponentsInChildren(true, _tilemaps);
+
+            tm = _tilemaps[2];
+        }
+        return tm;
+    }
+
     // Using a worldposition because what else ?!! so then the job is to narrow 
     // on what chunk then on what cell of that chunk no idear whatyou were doing 
     // not even sure parent to chunk works really  ironically we can infer as were in a
     // grid and we know what chunk were bordering then making that request. 
-    public TileBase GetTileGlobalSameLayer(Vector3Int worldPos, int layerId)
+    public TileBase GetTileGlobalSameLayer(Vector3Int position, int layerId)
     {
+        var tm = GetTileMap(position, layerId);
+        if (null != tm) 
+        {
+            var tb = tm.GetTile(position);
 
-        var ok = GetTileGlobalSameLayer2(worldPos, layerId);
-
-        
-        return ok;
+            return tb;
+        }
+        return null;
     }
 
     public void RefreshNeighborhoodSameLayer(Vector3Int parentCenter, int layerId)
@@ -89,16 +149,11 @@ public class ParentChunkGridIndex : MonoBehaviour
             for (int dx = -1; dx <= 1; dx++)
             {
                 var pc = new Vector3Int(parentCenter.x + dx, parentCenter.y + dy, 0);
-                //var ch = ParentToChunk(pc);
-
-                foreach (var childGrid in _childGridsBuf)
-                {
-                    var bounds = childGrid.GetComponentInChildren<GridPartitionBounds>();
-                    if (null != bounds && bounds.IsInbound(pc))
-                    {
-                        bounds.RefreshNeighborhoodSameLayer(pc, layerId);
-                    }
-                }
+                var tm = GetTileMap(pc, layerId);
+                if (null != tm) {
+                    //tm.RefreshTile(pc);
+                    Enqueue(tm, pc);
+                }               
             }
     }
   
@@ -106,49 +161,43 @@ public class ParentChunkGridIndex : MonoBehaviour
 
     public void RebuildIndex()
     {
-        _chunkGridAt.Clear();
+        _chunkAt.Clear();
         _layerMap.Clear();
         _layerOf.Clear();
 
         // 1) find ALL child Grids under parent (each child grid = one chunk)
-        _childGridsBuf.Clear();
-        parentGrid.GetComponentsInChildren(true, _childGridsBuf);
+        _chunkBuf.Clear();
 
-        for (int gi = 0; gi < _childGridsBuf.Count; gi++)
+        var root = parentGrid.transform;
+
+        int childCount = root.childCount;
+
+        for (int i = 0; i < childCount; i++) 
         {
-            var g = _childGridsBuf[gi];
-            if (!g || g == parentGrid) continue; // skip the root itself
 
-            // compute this chunk's coord in parent-cell space
-            // take the child grid's local cell (0,0,0) in world, map to parent cell:
-            var childOriginWorld = g.CellToWorld(Vector3Int.zero);
-            var childOriginParentCell = parentGrid.WorldToCell(childOriginWorld);
-         
-            ChunkTag tag = g.GetComponent<ChunkTag>();
-            var chunk = tag.chunk;
+            var child = root.GetChild(i);
 
-            // store chunk grid
-            _chunkGridAt[chunk] = g;
+            if (!child.TryGetComponent<ChunkTag>(out var chunk)) continue;
 
-            // 2) find all Tilemaps that belong to THIS child grid (layers)
-            _tmBuf.Clear();
-            g.GetComponentsInChildren(true, _tmBuf);
-            foreach (var tm in _tmBuf)
-            {
-                if (!tm) continue;
-                // ensure this TM is actually laid out on THIS child grid
-                if (tm.layoutGrid != g) continue;
+            var tm = child.GetChild(0).GetComponent<Tilemap>();
 
-                var layerId = ResolveLayerId(tm);
-                _layerOf[tm] = layerId;
-                var key = new LayerKey(chunk, layerId);
-                // one tilemap per (chunk,layer). If you allow multiple, add priority logic.
-                _layerMap[key] = tm;
-            }
+            
+            var b = tm.cellBounds;
+
+            var pos = b.center;
+
+            var pc = new Vector3Int((int)pos.x, (int)pos.y, 0);
+
+            var value = ParentToChunk(pc);
+
+            _chunkAt[value] = chunk;
         }
+           
+
 
 #if UNITY_EDITOR
-        Debug.Log($"[ParentChunkGridIndex] Rebuilt. chunks={_chunkGridAt.Count}, layers={_layerMap.Count}");
+        Debug.Log("test");
+        //Debug.Log($"[ParentChunkGridIndex] Rebuilt. chunks={_chunkGridAt.Count}, layers={_layerMap.Count}");
 #endif
     }
 
